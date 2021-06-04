@@ -1,9 +1,7 @@
 // noinspection DuplicatedCode
 
 import chai, { expect } from 'chai';
-
 import { asycMemo, asyncWaterfallWithRetry, getAll, lazyFilter, lazyMap, makePromisedStore, MISSING_KEY } from '../src/part2';
-
 import chaiAsPromised from 'chai-as-promised'
 
 chai.use(chaiAsPromised)

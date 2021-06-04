@@ -42,6 +42,7 @@ import { Result, bind, makeOk, makeFailure, safe2, mapResult } from "../shared/r
 import { isToken, parse as p } from "../shared/parser";
 import { makeSymbolSExp, SymbolSExp } from "../imp/L5-value";
 
+
 export type TExp =  AtomicTExp | CompoundTExp | TVar;
 export const isTExp = (x: any): x is TExp => isAtomicTExp(x) || isCompoundTExp(x) || isTVar(x);
 

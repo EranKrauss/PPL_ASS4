@@ -194,8 +194,14 @@ const checkNoOccurrence = (
 // so that the user defined types are known to the type inference system.
 // For each class (class : typename ...) add a pair <class.typename classTExp> to TEnv
 export const makeTEnvFromClasses = (parsed: A.Parsed): E.TEnv => {
-  // TODO makeTEnvFromClasses
-  return E.makeEmptyTEnv();
+  const env = E.makeEmptyTEnv()
+  const classExps: A.ClassExp[] = A.parsedToClassExps(parsed)
+  if (isEmpty(classExps)){
+    return env
+  }
+  const typesNames = R.map((exp) => exp.typeName.var , classExps)
+  const TClass = R.map((exp) => exp.typeName, classExps)
+  return E.makeExtendTEnv(typesNames, TClass, env)
 };
 
 // Purpose: Compute the type of a concrete expression

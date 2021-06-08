@@ -194,14 +194,21 @@ const checkNoOccurrence = (
 // so that the user defined types are known to the type inference system.
 // For each class (class : typename ...) add a pair <class.typename classTExp> to TEnv
 export const makeTEnvFromClasses = (parsed: A.Parsed): E.TEnv => {
-  const env = E.makeEmptyTEnv();
+  const env1 = E.makeEmptyTEnv();
   const classExps: A.ClassExp[] = A.parsedToClassExps(parsed);
   if (isEmpty(classExps)) {
-    return env;
+    return env1;
   }
-  const typesNames = R.map((exp) => exp.typeName.var, classExps);
-  const TClass = R.map((exp) => exp.typeName, classExps);
-  return E.makeExtendTEnv(typesNames, TClass, env);
+  //get all the methods and members names and types
+  const content = R.flatten(R.map((c_exp: A.ClassExp) => c_exp.fields,classExps))
+  const contentNames = R.flatten(R.map((varDec: A.VarDecl) => varDec.var,content))
+  const contentTypes = R.flatten(R.map((varDec: A.VarDecl) => varDec.texp,content))
+  const env2 = E.makeExtendTEnv (contentNames,contentTypes, env1);
+  //get all classes names and types
+  const classesNames = R.map((exp) => exp.typeName.var, classExps);
+  const classesTypes = R.map((exp) => exp.typeName, classExps);
+  return E.makeExtendTEnv(classesNames, classesTypes, env2);
+  
 };
 
 // Purpose: Compute the type of a concrete expression
@@ -414,41 +421,25 @@ export const typeofProgram = (exp: A.Program, tenv: E.TEnv): Result<T.TExp> =>
     ? makeFailure("Empty program")
     : typeofProgramExps(first(exp.exps), rest(exp.exps), tenv);
 
-
-    /*
-    const typeofProgramExps = (exp: A.Exp, exps: A.Exp[], tenv: E.TEnv): Result<T.TExp> => {
-    const constraint : Result<T.TExp> = typeofExp(exp, tenv)
-    return bind(constraint,(tExp)=> {
-            if(A.isDefineExp(exp)){
-                const newEnv :E.ExtendTEnv = E.makeExtendTEnv([exp.var.var],[exp.var.texp],tenv)
-                return (isEmpty(exps) ? makeOk(tExp) : typeofProgram(makeProgram(exps), newEnv))
-            }
-            return isEmpty(exps) ? makeOk(tExp) : typeofProgram(makeProgram(exps), tenv)
-        }
-    )
-}
-    Ppl */
+ 
 
 const typeofProgramExps = (
-  exp: A.Exp,     //if
-  exps: A.Exp[],  //[]
+  exp: A.Exp,     
+  exps: A.Exp[], 
   tenv: E.TEnv
 ): Result<T.TExp> =>{
-  console.log("rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr")
-  console.log(exp)
-  console.log(typeofExp(exp, tenv))
   return bind(
     typeofExp(exp, tenv),
     (currType: T.TExp): Result<T.TExp> =>
       A.isDefineExp(exp) ? 
-         isEmpty(exps) ? makeOk(currType) : typeofProgramExps(
+         (isEmpty(exps) ? makeOk(currType) : typeofProgramExps(
               first(exps),
               rest(exps),
-              E.makeExtendTEnv([exp.var.var], [currType], tenv)
-            )
-        : isEmpty(exps) 
+              E.makeExtendTEnv([exp.var.var], [exp.var.texp], tenv)
+            ))
+        : (isEmpty(exps) 
         ? makeOk(currType)
-        : typeofProgramExps(first(exps), rest(exps), tenv)
+        : typeofProgramExps(first(exps), rest(exps), tenv))
   );
           }
 
@@ -456,12 +447,14 @@ const typeofProgramExps = (
 //      - Only need to cover the case of Symbol and Pair
 //      - for a symbol - record the value of the symbol in the SymbolTExp
 //        so that precise type checking can be made on ground symbol values.
+
+
 export const typeofLit = (exp: A.LitExp): Result<T.TExp> =>
-  V.isSymbolSExp(exp.val)
-    ? makeOk(T.makeSymbolTExp())
-    : A.isCompoundExp(exp.val)
-    ? makeOk(T.makePairTExp())
-    : makeFailure("not a pair or symbol");
+  V.isSymbolSExp(exp.val) ? 
+  makeOk(T.makeSymbolTExp(exp.val)): 
+  V.isCompoundSExp(exp.val) ?
+  makeOk(T.makePairTExp()): 
+  makeFailure("not a pair or symbol");
 
 //export interface SetExp {tag: "SetExp"; var: VarRef; val: CExp; }
 
@@ -479,6 +472,8 @@ export const typeofSet = (exp: A.SetExp, tenv: E.TEnv): Result<T.VoidTExp> => {
     ? makeOk(T.makeVoidTExp())
     : makeFailure("var and val types is not match");
 };
+
+
 
 // Purpose: compute the type of a class-exp(type fields methods)
 // Typing rule:

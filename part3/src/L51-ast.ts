@@ -5,7 +5,7 @@
 // L51 extends L5 with:
 // typed class construct
 
-import { concat, chain, join, map, zipWith, filter } from "ramda";
+import { concat, chain, join, map, zipWith, filter, flatten } from "ramda";
 import { Sexp, Token } from "s-expression";
 import {
   isCompoundSExp,
@@ -619,12 +619,13 @@ const parseClassExp = (params: Sexp[]): Result<ClassExp> =>
     : parseGoodClassExp(params[1], params[2], params[3]);
 
 const parseGoodClassExp = (
-  typeName: Sexp, //string
+  typeName: Sexp,
   varDecls: Sexp,
   bindings: Sexp
 ): Result<ClassExp> => {
   if (isArray(varDecls) && isArray(bindings)) {
-    const Tname = isStrExp(typeName) ? makeFreshTVar() : undefined;
+    
+    const Tname = isString(typeName) ?  makeTVar(typeName) : undefined;
     const args: Result<VarDecl[]> = mapResult(parseVarDecl, varDecls);
     const body: Result<Binding[]> = isGoodBindings(bindings)
       ? parseBindings(bindings)
@@ -643,6 +644,7 @@ const parseGoodClassExp = (
   }
   return makeFailure("varDecls or binidings is not arrays as expected");
 };
+
 
 // sexps has the shape (quote <sexp>)
 export const parseLitExp = (param: Sexp): Result<LitExp> =>
@@ -850,21 +852,35 @@ const unparseClassExp = (
 // Collect class expressions in parsed AST so that they can be passed to the type inference module
 // export type Parsed = Exp | Program;
 
-export const parsedToClassExps = (p: Parsed): ClassExp[] => {
-  if (isExp(p)) {
-    return isClassExp(p) ? [p] : [];
-  }
-  const classExpresions: ClassExp[] = [];
-  map((exp) => {
-    isClassExp(exp) ? classExpresions.push(exp) : "";
-    return exp;
-  }, p.exps);
-  return classExpresions;
-};
 
-// L51
+export const parsedToClassExps = (p: Parsed): ClassExp[] =>{
+if(isProgram(p)){
+   return isEmpty(p.exps) ? [] :
+    parsedToClassExps(first(p.exps)).concat(parsedToClassExps(makeProgram(rest(p.exps))))
+}
+return isExp(p) ? (isDefineExp(p) ? cExpToClass(p.val) :
+              (isCExp(p) ? cExpToClass(p) : [])) :
+                []
+}
+
+const cExpToClass = (classExp:CExp):ClassExp[]=>{
+if(isClassExp(classExp)){ 
+  const classMethoods = (map((binding:Binding)=>binding.val,classExp.methods))
+  const classesExp = flatten(map(cExpToClass,classMethoods))
+  return [classExp].concat(classesExp)
+}
+  return []
+}
+
+// // L51
 export const classExpToClassTExp = (ce: ClassExp): ClassTExp =>
   makeClassTExp(
     ce.typeName.var,
     map((binding: Binding) => [binding.var.var, binding.var.texp], ce.methods)
   );
+
+
+  
+
+
+
